@@ -118,13 +118,15 @@ def load_figures_from_zip(zip_path: str):
     return img_full, img_detail, get_bbox(img_full), get_bbox(img_detail)
 
 
-def draw_size_badge(draw: ImageDraw.Draw, size_cm: int):
-    """右端にサイズバッジを描画"""
-    badge_cx  = CANVAS_SIZE - 52
-    badge_top = int(CANVAS_SIZE * 0.13)
-    badge_bot = int(CANVAS_SIZE * 0.87)
+def draw_size_badge(draw: ImageDraw.Draw, size_cm: int,
+                    fig_top: int = 0, fig_bot: int = 0, fig_right: int = 0):
+    """全身フィギュアの頭頂〜足元に合わせたサイズバッジを描画"""
+    # 全身フィギュアの右端 + 余白に配置（画面外に出ないようクランプ）
+    badge_cx  = min(fig_right + 28, CANVAS_SIZE - 48)
+    badge_top = fig_top
+    badge_bot = fig_bot
 
-    for y in range(badge_top + 42, badge_bot - 42, 12):
+    for y in range(badge_top + 30, badge_bot - 30, 12):
         draw.ellipse([badge_cx-3, y-3, badge_cx+3, y+3], fill=(255, 255, 255, 200))
     for cy in [badge_top, badge_bot]:
         draw.ellipse([badge_cx-9, cy-9, badge_cx+9, cy+9], fill=(255, 255, 255, 255))
@@ -170,25 +172,30 @@ def create_thumbnail(
     # フィギュア読み込み
     img_full, img_detail, bb_full, bb_detail = load_figures_from_zip(zip_path)
 
-    # 右：全身
-    fig_full = img_full.crop(bb_full)
-    rh = int(CANVAS_SIZE * 0.93)
-    rw = int(fig_full.width * rh / fig_full.height)
-    fig_full_r = fig_full.resize((rw, rh), Image.LANCZOS)
-    rx = 520 + (540 - rw) // 2
-    canvas.paste(fig_full_r, (rx, int(CANVAS_SIZE * 0.035)), mask=fig_full_r.split()[3])
-
-    # 左：上半身クローズアップ（上52%）
+    # ── 1層目：左クローズアップ（背面）余白なし・上下いっぱい ──
     cx0, cy0, cx1, cy1 = bb_detail
     crop_bottom = cy0 + int((cy1 - cy0) * 0.52)
     fig_detail_c = img_detail.crop((cx0, cy0, cx1, crop_bottom))
-    lh = int(CANVAS_SIZE * 0.92)
+    lh = int(CANVAS_SIZE * 1.02)            # 上下わずかにブリード
     lw = int(fig_detail_c.width * lh / fig_detail_c.height)
     fig_detail_r = fig_detail_c.resize((lw, lh), Image.LANCZOS)
-    canvas.paste(fig_detail_r, (-int(lw * 0.08), int(CANVAS_SIZE * 0.04)), mask=fig_detail_r.split()[3])
+    canvas.paste(fig_detail_r, (-int(lw * 0.06), -int(CANVAS_SIZE * 0.01)),
+                 mask=fig_detail_r.split()[3])
 
-    # サイズバッジ
-    draw_size_badge(ImageDraw.Draw(canvas), size_cm)
+    # ── 2層目：全身（最前面） ──
+    fig_full = img_full.crop(bb_full)
+    rh = int(CANVAS_SIZE * 0.90)
+    rw = int(fig_full.width * rh / fig_full.height)
+    fig_full_r = fig_full.resize((rw, rh), Image.LANCZOS)
+    rx = int(CANVAS_SIZE * 0.42) + (int(CANVAS_SIZE * 0.50) - rw) // 2
+    ry = int(CANVAS_SIZE * 0.05)
+    canvas.paste(fig_full_r, (rx, ry), mask=fig_full_r.split()[3])
+
+    # ── 3層目：サイズバッジ（全身の頭頂〜足元に合わせる）──
+    draw_size_badge(
+        ImageDraw.Draw(canvas), size_cm,
+        fig_top=ry, fig_bot=ry + rh, fig_right=rx + rw,
+    )
 
     # 保存
     canvas.convert("RGB").save(output_path, "WEBP", quality=90)
