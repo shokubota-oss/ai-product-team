@@ -70,6 +70,42 @@ BG_PROMPTS = {
     "beach":        ("cinematic background, sunny tropical beach, colorful beach umbrella, "
                      "clear turquoise ocean, bright blue sky white clouds, palm trees, "
                      "no people, no figures, just background"),
+    # サンリオ・可愛い・ピンク（マイメロ等）
+    "kawaii_pink":  ("dreamy background, soft pink bokeh with floating hearts and rose petals, "
+                     "pearl necklace, heart-shaped mirror, lace, sparkles, "
+                     "no people, no figures, just background"),
+    # サンリオ・ダーク・紫（クロミ等）
+    "kawaii_purple":("dreamy background, deep purple bokeh with floating hearts and crystals, "
+                     "gothic lace, purple gem stones, sparkles, mysterious cute atmosphere, "
+                     "no people, no figures, just background"),
+    # VTuber・ステージ（ぬいぐるみ）
+    "stage_light":  ("dreamy background, idol concert stage with purple and lavender spotlights, "
+                     "geometric light patterns, soft bokeh circles, glowing floor, "
+                     "no people, no figures, just background"),
+    # テクノロジー・SF（ベイマックス等）
+    "tech_blue":    ("cinematic background, deep blue technology circuit board pattern, "
+                     "glowing blue neon lines, digital grid, sci-fi atmosphere, "
+                     "no people, no figures, just background"),
+    # 洞窟・クリスタル（モンスター等）
+    "crystal_cave": ("cinematic background, dark mystical cave with glowing blue crystal formations, "
+                     "stalactites, magical blue light, stone floor, "
+                     "no people, no figures, just background"),
+    # レインボー・パステル（大型ぬいぐるみ）
+    "rainbow_pastel":("dreamy background, rainbow gradient pastel colors, glowing stars and sparkles, "
+                      "soft bokeh light orbs, magical cheerful atmosphere, "
+                      "no people, no figures, just background"),
+    # ポケモン・自然フィールド
+    "pokemon_field":("cinematic background, bright sunny day, lush green grass field, "
+                     "fluffy white clouds, blue sky, soft bokeh nature, "
+                     "no people, no figures, just background"),
+    # グッズ・速度感（バッグ等）
+    "speed_lines":  ("cinematic background, dynamic blue speed lines radiating energy, "
+                     "glowing streaks, high-speed motion blur effect, cool blue tones, "
+                     "no people, no figures, just background"),
+    # トロピカル・ジャングル・夏
+    "tropical_jungle":("cinematic background, tropical jungle beach with banana trees, "
+                       "bright yellow bananas, tropical flowers, warm sunny atmosphere, "
+                       "no people, no figures, just background"),
     # 汎用デフォルト
     "default":      ("cinematic background, dramatic fantasy landscape with atmospheric lighting, "
                      "bokeh depth of field, vivid colors, "
@@ -135,29 +171,45 @@ def load_figures_from_zip(zip_path: str):
 
 def draw_size_badge(draw: ImageDraw.Draw, size_cm: int,
                     fig_top: int, fig_bot: int, fig_right: int,
-                    badge_style: str = "filled"):
-    """サイズバッジを描画（全身フィギュアの頭頂〜足元に合わせる）"""
+                    badge_style: str = "filled",
+                    line_style: str = "dotted"):
+    """サイズバッジを描画（全身フィギュアの頭頂〜足元に合わせる）
+    badge_style: filled / outlined / filled_black
+    line_style:  dotted / solid
+    """
     badge_cx  = min(fig_right + 26, CANVAS_SIZE - 46)
     badge_top = fig_top
     badge_bot = fig_bot
 
-    # ドットライン
-    dot_color = (255, 255, 255, 200) if badge_style == "filled" else (255, 255, 255, 230)
-    for y in range(badge_top + 28, badge_bot - 28, 12):
-        draw.ellipse([badge_cx-3, y-3, badge_cx+3, y+3], fill=dot_color)
+    # ライン
+    if line_style == "solid":
+        draw.line([badge_cx, badge_top + 14, badge_cx, badge_bot - 14], fill=(0, 0, 0, 220), width=2)
+    else:  # dotted
+        dot_color = (255, 255, 255, 200) if badge_style != "outlined" else (255, 255, 255, 230)
+        for y in range(badge_top + 28, badge_bot - 28, 12):
+            draw.ellipse([badge_cx-3, y-3, badge_cx+3, y+3], fill=dot_color)
+
+    # エンドポイント
+    ep_color = (0, 0, 0, 230) if line_style == "solid" else (255, 255, 255, 255)
     for cy in [badge_top, badge_bot]:
-        draw.ellipse([badge_cx-9, cy-9, badge_cx+9, cy+9], fill=(255, 255, 255, 255))
+        draw.ellipse([badge_cx-8, cy-8, badge_cx+8, cy+8], fill=ep_color)
 
     # バッジ本体
     mid_y = (badge_top + badge_bot) // 2
     bw, bh = 82, 68
     box = [badge_cx-bw//2, mid_y-bh//2, badge_cx+bw//2, mid_y+bh//2]
-    if badge_style == "filled":
-        draw.rounded_rectangle(box, radius=20, fill=(18, 18, 58, 245))
-        draw.rounded_rectangle(box, radius=20, outline=(255, 255, 255, 60), width=1)
-    else:  # outlined
+
+    if badge_style == "filled_black":
+        draw.rounded_rectangle(box, radius=22, fill=(10, 10, 10, 250))
+        txt_color = (255, 255, 255, 255)
+    elif badge_style == "outlined":
         draw.rounded_rectangle(box, radius=20, fill=(18, 18, 58, 140))
         draw.rounded_rectangle(box, radius=20, outline=(255, 255, 255, 220), width=2)
+        txt_color = (255, 255, 255, 255)
+    else:  # filled (dark navy)
+        draw.rounded_rectangle(box, radius=20, fill=(18, 18, 58, 245))
+        draw.rounded_rectangle(box, radius=20, outline=(255, 255, 255, 60), width=1)
+        txt_color = (255, 255, 255, 255)
 
     try:
         fb = ImageFont.truetype(FONT_BOLD, 30)
@@ -165,8 +217,8 @@ def draw_size_badge(draw: ImageDraw.Draw, size_cm: int,
     except OSError:
         fb = fs = ImageFont.load_default()
 
-    draw.text((badge_cx, mid_y-12), str(size_cm), font=fb, fill=(255,255,255,255), anchor="mm")
-    draw.text((badge_cx, mid_y+16), "cm",         font=fs, fill=(220,220,255,210), anchor="mm")
+    draw.text((badge_cx, mid_y-12), str(size_cm), font=fb, fill=txt_color, anchor="mm")
+    draw.text((badge_cx, mid_y+16), "cm",         font=fs, fill=txt_color, anchor="mm")
 
 
 def create_thumbnail(
@@ -175,8 +227,9 @@ def create_thumbnail(
     output_path: str,
     bg_style: str = "default",
     bg_image_path: str = "",
-    layout: str = "auto",        # "auto" | "double" | "single"
-    badge_style: str = "filled", # "filled" | "outlined"
+    layout: str = "auto",         # "auto" | "double" | "single"
+    badge_style: str = "filled",  # "filled" | "outlined" | "filled_black"
+    line_style: str = "dotted",   # "dotted" | "solid"
 ) -> str:
     print(f"\n[{os.path.basename(zip_path)}] サムネイル生成開始 layout={layout}")
 
@@ -236,6 +289,7 @@ def create_thumbnail(
         ImageDraw.Draw(canvas), size_cm,
         fig_top=ry, fig_bot=ry + rh, fig_right=rx + rw,
         badge_style=badge_style,
+        line_style=line_style,
     )
 
     canvas.convert("RGB").save(output_path, "WEBP", quality=90)
@@ -251,11 +305,12 @@ def main():
     parser.add_argument("--style",  default="default",      choices=list(BG_PROMPTS.keys()))
     parser.add_argument("--bg",     default="",             help="既存背景画像パス")
     parser.add_argument("--layout", default="auto",         choices=["auto","double","single"])
-    parser.add_argument("--badge",  default="filled",       choices=["filled","outlined"])
+    parser.add_argument("--badge",  default="filled",  choices=["filled","outlined","filled_black"])
+    parser.add_argument("--line",   default="dotted",  choices=["dotted","solid"])
     args = parser.parse_args()
 
     out = args.output or os.path.splitext(args.zip)[0] + "_thumb.webp"
-    create_thumbnail(args.zip, args.size, out, args.style, args.bg, args.layout, args.badge)
+    create_thumbnail(args.zip, args.size, out, args.style, args.bg, args.layout, args.badge, args.line)
 
 
 if __name__ == "__main__":
